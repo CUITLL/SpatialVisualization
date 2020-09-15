@@ -1,0 +1,305 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!-- saved from url=(0052)file:///C:/Users/mowoo/Downloads/Lego%20Builder.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+	
+	<link rel="stylesheet" type="text/css" href="./index_files/legobuilder.css">
+	<script type="text/javascript" src="./index_files/three.min.js.download"></script>
+	<script type="text/javascript" src="./index_files/jsmodeler.js.download"></script>
+	<script type="text/javascript" src="./index_files/jsmodeler.ext.three.js.download"></script>
+	<script type="text/javascript" src="./index_files/legogenerator.js.download"></script>
+	<script type="text/javascript" src="./index_files/legoeditor.js.download"></script>
+	<title>Lego Builder</title>
+
+	<script type="text/javascript">
+		var editor = null;
+		var viewer = null;
+		var legoBuild = null;
+
+		function GenerateLegoBuild (index)
+		{
+			var bodyAndMaterials = legoBuild.GetBodyAndMaterials (index);
+			var meshes = JSM.ConvertBodyToThreeMeshes (bodyAndMaterials[0], bodyAndMaterials[1]);
+			for (var i = 0; i < meshes.length; i++) {
+				viewer.AddMesh (meshes[i]);
+			}
+		}
+		
+		function Resize ()
+		{
+			var margin = 10;
+			var left = document.getElementById ('left');
+			var canvas = document.getElementById ('example');
+			canvas.width = window.innerWidth - left.clientWidth - 3 * margin;
+			canvas.height = window.innerHeight - 3 * margin;
+
+			if (viewer != null) {
+				viewer.Resize ();
+			}
+		}
+
+		function BrickAdded (editorBrick)
+		{
+			function ConvertColor (color) {
+				var resultFormat = '0x' + color.substr (1);
+				return parseInt (resultFormat);
+			};
+		
+			// rows and columns are swapped
+			legoBuild.AddLegoBrick (new JSM.LegoBrick (editorBrick.positionY, editorBrick.positionX, editorBrick.columns, editorBrick.rows, editorBrick.isLarge, ConvertColor (editorBrick.color)));
+			GenerateLegoBuild (legoBuild.BrickCount () - 1);
+			viewer.Draw ();
+		}
+		
+		function GetColorTable ()
+		{
+			var colors = [
+'#23a1d1',
+'#478CC6',
+'#0057A8',
+'#FEC400',
+'#E76318',
+'#DE000D',
+'#FFFFFF',
+'#444444',
+'#007B28',
+'#5F8265',
+'#95B90B',
+'#808080',
+			];
+			return colors;
+		}
+		
+		function SetEditorDefaultColor (index)
+		{
+			var colors = GetColorTable ();		
+			var elements = document.getElementsByClassName ('color');
+
+			var i, element;
+			for (i = 0; i < elements.length; i++) {
+				element = elements[i];
+				if (i == index) {
+					element.style.height = '30px';
+				} else {
+					element.style.height = '20px';
+				}
+			}
+			
+			editor.SetDefaultColor (colors[index]);
+		}
+		
+		function SetEditorDefaultIsLarge ()
+		{
+			var largeText = 'large';
+			var smallText = 'small';
+			var element = document.getElementById ('islargebutton');
+			if (element.innerHTML == smallText) {
+				editor.SetDefaultIsLarge (true);
+				element.innerHTML = largeText;
+			} 
+		}
+
+		function Undo ()
+		{
+			var currentBrickCount = legoBuild.BrickCount ();
+			if (currentBrickCount > 1) {
+				editor.RemoveLastBrick ();
+				legoBuild.RemoveLastBrick ();
+				viewer.RemoveLastMesh ();
+			}
+		}
+		
+		function Clear ()
+		{
+			var currentBrickCount = legoBuild.BrickCount ();
+			if (currentBrickCount > 1) {
+				editor.RemoveAllBricks ();
+				legoBuild.RemoveAllBricks ();
+				var i;
+				for (i = 0; i < currentBrickCount - 1; i++) {
+					viewer.RemoveLastMesh ();
+				}
+			}
+		}
+
+		function Random ()
+		{
+			var R = function (from, to)
+			{
+				return JSM.RandomInt (from, to);
+			};
+		
+			var colors = GetColorTable ();
+			var rows = R (1, 4);
+			var columns = R (1, 4);
+			var tableSize = editor.GetTableSize ();
+			
+			editor.AddBrick (new LegoEditorBrick (R (0, tableSize - rows), R (0, tableSize - columns), rows, columns, R (0, 1), colors[R (0, colors.length - 1)]));
+		}
+
+		function Error ()
+		{
+			document.getElementById ('left').style.display = 'none';
+			document.getElementById ('right').style.display = 'none';
+			alert ('Your browser does not support WebGL.');
+		}
+		
+		function Load ()
+		{
+			var TextureLoaded = function () {
+				viewer.Draw ();
+			};
+
+			var viewerSettings = {
+				cameraEyePosition : [1.0, -1.5, 1.0],
+				cameraCenterPosition : [0.0, 0.0, 0.0],
+				cameraUpVector : [0, 0, 1]
+			};
+
+			window.onresize = Resize;
+			Resize ();
+
+			var settings = {
+				mode : 'Polygon',
+				color : '#00aa00'
+			};
+			
+			var tableSize = 15;
+			
+			editor = new LegoEditor ();
+			if (!editor.Initialize ('editorCanvas', tableSize, BrickAdded)) {
+				Error ();
+				return;
+			}
+			
+			SetEditorDefaultColor (2);
+			SetEditorDefaultIsLarge ();
+
+			viewer = new JSM.ThreeViewer ();
+			if (!viewer.Start (document.getElementById ('example'), viewerSettings)) {
+				Error ();
+				return;
+			}
+			
+			legoBuild = new JSM.LegoBuild (new JSM.LegoTable (tableSize, tableSize));
+			GenerateLegoBuild (0);
+			
+			viewer.FitInWindow ();
+			viewer.Draw ();
+		}
+	
+	    window.onload = function ()
+		{
+			Load ();			
+		}
+	</script>
+
+</head>
+
+<body>
+	<div id="left">
+		<div id="menu">
+		    	    <!-- top left header (logo and error message) -->
+        <a href="https://www.wittystore.com/">
+<img border="0" alt="wittystore" src="./index_files/wittystore_logo_title.png">
+</a>
+			<div class="colorpicker">
+				<div class="button">
+					<a href="javascript:SetEditorDefaultColor (0);"><div class="color" style="background: rgb(35, 161, 209); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (1);"><div class="color" style="background: rgb(71, 140, 198); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (2);"><div class="color" style="background: rgb(0, 87, 168); height: 30px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (3);"><div class="color" style="background: rgb(254, 196, 0); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (4);"><div class="color" style="background: rgb(231, 99, 24); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (5);"><div class="color" style="background: rgb(222, 0, 13); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (6);"><div class="color" style="background: rgb(255, 255, 255); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (7);"><div class="color" style="background: rgb(68, 68, 68); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (8);"><div class="color" style="background: rgb(0, 123, 40); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (9);"><div class="color" style="background: rgb(95, 130, 101); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (10);"><div class="color" style="background: rgb(149, 185, 11); height: 20px;"></div></a>
+					<a href="javascript:SetEditorDefaultColor (11);"><div class="color" style="background: rgb(128, 128, 128); height: 20px;"></div></a>
+				</div>
+				<div class="clearer"></div>
+			</div>
+			<div class="controls">
+				<a href="javascript:Undo ();"><div class="button">undo</div></a>
+				<a href="javascript:SetEditorDefaultIsLarge ();"><div id="islargebutton" class="button">large</div></a>
+				<a href="javascript:Clear ();"><div class="button" style="float : right; margin-right : 0px;">clear</div></a>
+				<div class="clearer"></div>
+			</div>
+			<canvas id="editorCanvas" width="300" height="300">
+						</canvas>
+			
+			
+<!-- Wittystore_Ad -->
+<script data-ad-client="ca-pub-3440342300483082" async="" src="./index_files/f.txt"></script>
+  
+			
+			<div class="projectlink">
+			    <font size="1" color="lightgrey">
+				Powered by JSModeler
+			</font>
+			</div>
+		</div>
+	</div>
+	<div id="right">
+		<canvas id="example" width="1186" height="701" style="width: 1186px; height: 701px;"></canvas>
+	</div>
+
+
+
+<div id="voicein_container" style="display: none;"><div id="voicein_voicebox_container"><div id="voicein_voicebox"></div></div><div id="voicein_popup_container" class="voicein_tr"><div id="voicein_popup">
+    <div id="voicein_settings">
+      <div style="display: inline-block; vertical-align: middle; vertical-align: top;"><img src="chrome-extension://pjnefijmagpdjfhhkpljicbbpicelgko/images/icon144.png" style="width: 30px; vertical-align: top;"></div>
+      <span id="voicein_lang">en-US</span>
+    </div>
+    <div id="voicein_upgrade" class="voicein_menu_option">
+      <a href="https://dictanote.co/voicein/plus/" target="_blank" title="Voice In Options" style="color: #F2A62C!important;">
+        <svg style="height: 13px;" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="bolt" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" class="svg-inline--fa fa-bolt fa-w-10 fa-2x"><path fill="currentColor" d="M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-1.7 275.2 9.5 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z" class=""></path></svg>        
+        Upgrade
+      </a>
+    </div>
+    <div id="voicein_spacebox_container">
+      <div><textarea id="voicein_spacebox"></textarea></div>
+      <p style="background: black; margin:0; padding: 0; line-height: 20px; font-size: 12px;">
+        <a href="https://www.wittystore.com/3dmodeler/lego-builder.html#" style="color: white; padding-left: 5px; text-decoration: none;" id="voicein_copy_spacebox">Copy</a> 
+        <a href="https://www.wittystore.com/3dmodeler/lego-builder.html#" style="color: white; padding-left: 10px; text-decoration: none;" id="voicein_cut_spacebox">Cut</a> 
+        <span style="float:right; color: gray"><i>Dictation Box&nbsp;</i></span>
+      </p>
+    </div>
+    <div id="voicein_help">
+      <p id="voicein_help_message"></p>
+    </div>
+    </div></div><div id="voicein_modal">
+    <div class="voicein_modal">
+      <div class="voicein_modal_content">
+        <span class="voicein_modal_close">×</span>
+        <h1>Voice In Settings</h1>
+        <div class="voicein_modal_section">
+          <h4>Select your dictation language</h4>
+          <select class="form-control" id="select_language"><option value="af-ZA">Afrikaans (Suid-Afrika)</option><option value="am-ET">አማርኛ (ኢትዮጵያ)</option><option value="hy-AM">Հայ (Հայաստան)</option><option value="az-AZ">Azərbaycan (Azərbaycan)</option><option value="id-ID">Bahasa Indonesia (Indonesia)</option><option value="ms-MY">Bahasa Melayu (Malaysia)</option><option value="bn-BD">বাংলা (বাংলাদেশ)</option><option value="bn-IN">বাংলা (ভারত)</option><option value="ca-ES">Català (Espanya)</option><option value="cs-CZ">Čeština (Česká republika)</option><option value="da-DK">Dansk (Danmark)</option><option value="de-DE">Deutsch (Deutschland)</option><option value="en-AU">English (Australia)</option><option value="en-CA">English (Canada)</option><option value="en-GH">English (Ghana)</option><option value="en-GB">English (Great Britain)</option><option value="en-IN">English (India)</option><option value="en-IE">English (Ireland)</option><option value="en-KE">English (Kenya)</option><option value="en-NZ">English (New Zealand)</option><option value="en-NG">English (Nigeria)</option><option value="en-PH">English (Philippines)</option><option value="en-ZA">English (South Africa)</option><option value="en-TZ">English (Tanzania)</option><option value="en-US">English (United States)</option><option value="es-AR">Español (Argentina)</option><option value="es-BO">Español (Bolivia)</option><option value="es-CL">Español (Chile)</option><option value="es-CO">Español (Colombia)</option><option value="es-CR">Español (Costa Rica)</option><option value="es-EC">Español (Ecuador)</option><option value="es-SV">Español (El Salvador)</option><option value="es-ES">Español (España)</option><option value="es-US">Español (Estados Unidos)</option><option value="es-GT">Español (Guatemala)</option><option value="es-HN">Español (Honduras)</option><option value="es-MX">Español (México)</option><option value="es-NI">Español (Nicaragua)</option><option value="es-PA">Español (Panamá)</option><option value="es-PY">Español (Paraguay)</option><option value="es-PE">Español (Perú)</option><option value="es-PR">Español (Puerto Rico)</option><option value="es-DO">Español (República Dominicana)</option><option value="es-UY">Español (Uruguay)</option><option value="es-VE">Español (Venezuela)</option><option value="eu-ES">Euskara (Espainia)</option><option value="fil-PH">Filipino (Pilipinas)</option><option value="fr-CA">Français (Canada)</option><option value="fr-FR">Français (France)</option><option value="gl-ES">Galego (España)</option><option value="ka-GE">ქართული (საქართველო)</option><option value="gu-IN">ગુજરાતી (ભારત)</option><option value="hr-HR">Hrvatski (Hrvatska)</option><option value="zu-ZA">IsiZulu (Ningizimu Afrika)</option><option value="is-IS">Íslenska (Ísland)</option><option value="it-IT">Italiano (Italia)</option><option value="jv-ID">Jawa (Indonesia)</option><option value="kn-IN">ಕನ್ನಡ (ಭಾರತ)</option><option value="km-KH">ភាសាខ្មែរ (កម្ពុជា)</option><option value="lo-LA">ລາວ (ລາວ)</option><option value="lv-LV">Latviešu (latviešu)</option><option value="lt-LT">Lietuvių (Lietuva)</option><option value="hu-HU">Magyar (Magyarország)</option><option value="ml-IN">മലയാളം (ഇന്ത്യ)</option><option value="mr-IN">मराठी (भारत)</option><option value="nl-NL">Nederlands (Nederland)</option><option value="ne-NP">नेपाली (नेपाल)</option><option value="nb-NO">Norsk bokmål (Norge)</option><option value="pl-PL">Polski (Polska)</option><option value="pt-BR">Português (Brasil)</option><option value="pt-PT">Português (Portugal)</option><option value="ro-RO">Română (România)</option><option value="si-LK">සිංහල (ශ්රී ලංකාව)</option><option value="sk-SK">Slovenčina (Slovensko)</option><option value="sl-SI">Slovenščina (Slovenija)</option><option value="su-ID">Urang (Indonesia)</option><option value="sw-TZ">Swahili (Tanzania)</option><option value="sw-KE">Swahili (Kenya)</option><option value="fi-FI">Suomi (Suomi)</option><option value="sv-SE">Svenska (Sverige)</option><option value="ta-IN">தமிழ் (இந்தியா)</option><option value="ta-SG">தமிழ் (சிங்கப்பூர்)</option><option value="ta-LK">தமிழ் (இலங்கை)</option><option value="ta-MY">தமிழ் (மலேசியா)</option><option value="te-IN">తెలుగు (భారతదేశం)</option><option value="vi-VN">Tiếng Việt (Việt Nam)</option><option value="tr-TR">Türkçe (Türkiye)</option><option value="ur-PK">اردو (پاکستان)</option><option value="ur-IN">اردو (بھارت)</option><option value="el-GR">Ελληνικά (Ελλάδα)</option><option value="bg-BG">Български (България)</option><option value="ru-RU">Русский (Россия)</option><option value="sr-RS">Српски (Србија)</option><option value="uk-UA">Українська (Україна)</option><option value="he-IL">עברית (ישראל)</option><option value="ar-IL">العربية (إسرائيل)</option><option value="ar-JO">العربية (الأردن)</option><option value="ar-AE">العربية (الإمارات)</option><option value="ar-BH">العربية (البحرين)</option><option value="ar-DZ">العربية (الجزائر)</option><option value="ar-SA">العربية (السعودية)</option><option value="ar-IQ">العربية (العراق)</option><option value="ar-KW">العربية (الكويت)</option><option value="ar-MA">العربية (المغرب)</option><option value="ar-TN">العربية (تونس)</option><option value="ar-OM">العربية (عُمان)</option><option value="ar-PS">العربية (فلسطين)</option><option value="ar-QA">العربية (قطر)</option><option value="ar-LB">العربية (لبنان)</option><option value="ar-EG">العربية (مصر)</option><option value="fa-IR">فارسی (ایران)</option><option value="hi-IN">हिन्दी (भारत)</option><option value="th-TH">ไทย (ประเทศไทย)</option><option value="ko-KR">한국어 (대한민국)</option><option value="cmn-Hant-TW">國語 (台灣)</option><option value="yue-Hant-HK">廣東話 (香港)</option><option value="ja-JP">日本語（日本）</option><option value="cmn-Hans-HK">普通話 (香港)</option><option value="cmn-Hans-CN">普通话 (中国大陆)</option></select>
+          <p style="font-size: 10px; margin-top: 10px;">If you change the language, make sure you restart Voice In
+        </p></div>
+        <div class="voicein_modal_section">
+          <h4>Enable Dictation Box <span class="plus-only">🔒 (only for <a target="_blank" href="https://dictanote.co/voicein/plus/">plus users</a>)</span></h4>
+          <div><input type="checkbox" id="voicein_db" disabled=""><label for="#voicein_db">Enable dictation box for this domain</label></div>
+        </div>
+        <div class="voicein_modal_section">
+          <h4>Enable Paste Mode <span class="plus-only">🔒 (only for <a target="_blank" href="https://dictanote.co/voicein/plus/">plus users</a>)</span></h4>
+          <div><input type="checkbox" id="voicein_pm" disabled=""><label for="#voicein_pm">Enable paste mode for this domain</label></div>
+        </div>
+        <div class="voicein_modal_section">
+          <h4>Keyboard Shortcut</h4>
+          <div class="voicein_ks" id="voicein_current_ks">Ctrl+Shift+9</div>
+          <p>You can use the keyboard shortcut to start / stop dictation<br>
+          Go to URL chrome://extensions/shortcuts to change the shortcut</p>
+        </div>
+        <div class="voicein_modal_section">
+          <h4>Voice Commands</h4>
+          <p>Find all available voice commands for your language <a href="chrome-extension://pjnefijmagpdjfhhkpljicbbpicelgko/voicecommands.html" target="_blank">here</a></p>
+        </div>
+        <div class="voicein_modal_section">
+          <h4>Help</h4>
+          <p>Go to <a href="https://support.dictanote.co/hc/en-us/sections/360006696291-Voice-In" target="_blank">Help Center</a></p>
+        </div>
+      </div>
+    </div></div></div></body></html>
